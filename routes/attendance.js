@@ -217,8 +217,6 @@ router.get("/all/:id", async (req, res) => {
       orderBy: { checkInTime: "desc" },
     });
 
-    // We filter out weekends from history or mark them if necessary
-    // but usually, history only contains days where records were created.
     res.json(history);
   } catch (err) {
     res.status(500).json({ error: err.message });
