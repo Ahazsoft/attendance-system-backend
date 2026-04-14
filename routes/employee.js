@@ -44,16 +44,26 @@ router.put('/update-user/:id', upload.single('image'), async (req, res) => {
     const { firstName, lastName, telephone } = req.body;
     let imageUrl = null;
 
-    // 1. Handle Image Upload if a file is attached
+    // 1. Fetch current employee to get the old image URL
+    const currentEmployee = await prisma.employee.findUnique({
+      where: { id: parseInt(id) },
+      select: { imageUrl: true },
+    });
+
+    if (!currentEmployee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    const oldImageUrl = currentEmployee.imageUrl;
+
+    // 2. Handle new image upload if a file is attached
     if (req.file) {
       const fileExt = req.file.originalname.split('.').pop();
-      // Generate a unique filename
-      const fileName = `${Date.now()}-${id}.${fileExt}`; 
-      const filePath = `avatars/${fileName}`; // Folder structure inside bucket
+      const fileName = `${Date.now()}-${id}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
 
-      // Upload to Supabase 'profile-images' bucket
       const { error: uploadError } = await supabaseAdmin.storage
-        .from('profile') 
+        .from('profile')
         .upload(filePath, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
@@ -61,7 +71,6 @@ router.put('/update-user/:id', upload.single('image'), async (req, res) => {
 
       if (uploadError) throw uploadError;
 
-      // Get the public URL
       const { data: publicUrlData } = supabaseAdmin.storage
         .from('profile')
         .getPublicUrl(filePath);
@@ -69,35 +78,53 @@ router.put('/update-user/:id', upload.single('image'), async (req, res) => {
       imageUrl = publicUrlData.publicUrl;
     }
 
-    // 2. Build the Prisma update data object
+    // 3. Build update data
     const updateData = {
       firstName,
       lastName,
       telephone,
     };
-    
-    // Only update the imageUrl if a new one was generated
+
     if (imageUrl) {
       updateData.imageUrl = imageUrl;
     }
 
-    // 3. Update the database
+    // 4. Update the database
     const updatedUser = await prisma.employee.update({
       where: { id: parseInt(id) },
       data: updateData,
     });
 
-    // Remove password before sending back to client
+    // 5. Delete old image from Supabase (if a new one was set and old one existed)
+    if (imageUrl && oldImageUrl) {
+      // Extract the path from the old public URL
+      // Example URL: https://<project>.supabase.co/storage/v1/object/public/profile/avatars/filename.jpg
+      const urlParts = oldImageUrl.split('/');
+      const bucketIndex = urlParts.indexOf('profile'); // 'profile' is the bucket name
+      if (bucketIndex !== -1) {
+        const oldFilePath = urlParts.slice(bucketIndex + 1).join('/');
+        
+        // Fire-and-forget deletion (non-blocking)
+        supabaseAdmin.storage
+          .from('profile')
+          .remove([oldFilePath])
+          .then(({ error }) => {
+            if (error) console.warn('Failed to delete old profile image:', error);
+            else console.log('Old profile image deleted:', oldFilePath);
+          })
+          .catch(err => console.warn('Unexpected error deleting old image:', err));
+      }
+    }
+
+    // 6. Remove password and respond
     const { password, ...userWithoutPassword } = updatedUser;
-    console.log("updated")
-    
+    console.log('updated');
     res.status(200).json(userWithoutPassword);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
-
 
 module.exports = router;
 
