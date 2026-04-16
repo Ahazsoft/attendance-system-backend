@@ -34,4 +34,12 @@ jobs:
           protocol: ftps
           local-dir: ./
           server-dir: ./attendance-backend.ahaz.io/
+          exclude: |
+            node_modules
+            .github
+            .git*
+            .env
+            README.md
+            package-lock.json
+            .gitignore
         
