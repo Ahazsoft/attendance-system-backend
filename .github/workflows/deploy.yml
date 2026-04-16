@@ -1,8 +1,8 @@
-name: Deploy to cPanel
+name: Deploy to cPanel via FTP
 
 on:
   push:
-    branches:
+    branches: 
       - main
 
 jobs:
@@ -10,25 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd ${{ secrets.APP_DIR }}
+        node-version: '24'
 
-            echo "📥 Pulling latest code..."
-            git pull origin main
+      - name: build prokect
+        run: 
+          npm install
+          npm run build
 
-            echo "📦 Installing dependencies..."
-            npm install
+     
 
-            echo "🔄 Generating Prisma client..."
-            npx prisma generate
-
-            echo "♻️ Restarting app..."
-            pm2 restart attendance-backend || pm2 start npm --name "attendance-backend" -- start
-
-            echo "✅ Deployment complete!"
+      - name: Deploy to cPanel via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          secure: true
+          passive: true
+          local-dir: ./
+          server-dir: ./attendance-backend.ahaz.io/
+          exclude: |
+            .git*
+            node_modules
+            .github
+            .env
