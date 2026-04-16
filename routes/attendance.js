@@ -223,4 +223,18 @@ router.get("/all/:id", async (req, res) => {
   }
 });
 
+router.get("/getAll", async (req, res) => {
+  try {
+
+    const history = await prisma.attendance.findMany({
+      orderBy: { employeeId: "asc"},
+    });
+
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 module.exports = router;

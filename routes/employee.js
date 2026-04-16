@@ -126,5 +126,33 @@ router.put('/update-user/:id', upload.single('image'), async (req, res) => {
   }
 });
 
+router.get('/fetchAllUsers', async (req, res) => {
+  try {
+    const users = await prisma.employee.findMany({
+      where: {
+        isAdmin: false, // 🚫 filter out admins
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        isAdmin: true,
+        isApproved: true,
+        position: true,
+        imageUrl: true,
+        salary: true,
+        telephone: true,
+        streak: true,
+      },
+    });
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
 module.exports = router;
 
