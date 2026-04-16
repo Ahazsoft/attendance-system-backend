@@ -35,7 +35,9 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           port: ${{ secrets.FTP_PORT }}           # default 21
-          protocol: ftps                          # or 'ftp'
+          protocol: ftps
+          concurrency: 1 
+          passive: true 
           local-dir: ./                           # upload everything from repo root
           server-dir: ${{ secrets.FTP_REMOTE_DIR }} # e.g. /public_html
           exclude: |
