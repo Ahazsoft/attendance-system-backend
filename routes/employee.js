@@ -142,6 +142,7 @@ router.get('/fetchAllUsers', async (req, res) => {
         position: true,
         imageUrl: true,
         salary: true,
+        gender:true,
         telephone: true,
         streak: true,
       },
@@ -152,6 +153,10 @@ router.get('/fetchAllUsers', async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch users" });
   }
+});
+
+router.post('/approve',async (req,res)=>{
+
 });
 
 module.exports = router;
