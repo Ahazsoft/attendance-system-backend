@@ -1,48 +1,35 @@
-name: Deploy to cPanel via FTP/FTPS
+
+name: Deploy to cPanel
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          version: 8
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ${{ secrets.APP_DIR }}
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
+            echo "📥 Pulling latest code..."
+            git pull origin main
 
-      # - name: Install dependencies
-      #   run: pnpm install --frozen-lockfile
+            echo "📦 Installing dependencies..."
+            npm install
 
-      # - name: Run build (if you have a build step, e.g., frontend bundling)
-      #   run: pnpm run build || true   # skip if no build script
+            echo "🔄 Generating Prisma client..."
+            npx prisma generate
 
-      - name: Deploy via FTP/FTPS to cPanel
-        uses: SamKirkland/FTP-Deploy-Action@4.3.0
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}           # default 21
-          protocol: ftps
-          concurrency: 1 
-          passive: true 
-          local-dir: ./                           # upload everything from repo root
-          server-dir: ${{ secrets.FTP_REMOTE_DIR }} # e.g. /public_html
-          exclude: |
-            .git*
-            node_modules
-            .env
-            .pnpm-store
-            .github
+            echo "♻️ Restarting app..."
+            pm2 restart attendance-backend || pm2 start npm --name "attendance-backend" -- start
+
+            echo "✅ Deployment complete!"
