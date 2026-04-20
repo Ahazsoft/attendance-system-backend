@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const multer = require('multer');
+const multer = require("multer");
 
 const prisma = require("../prisma");
-const {supabase, supabaseAdmin} = require("../supabase");
-const upload = multer({ storage: multer.memoryStorage() }); 
+const { supabase, supabaseAdmin } = require("../supabase");
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.post("/get-user", async (req, res) => {
   try {
@@ -38,7 +38,7 @@ router.post("/get-user", async (req, res) => {
   }
 });
 
-router.put('/update-user/:id', upload.single('image'), async (req, res) => {
+router.put("/update-user/:id", upload.single("image"), async (req, res) => {
   try {
     const { id } = req.params;
     const { firstName, lastName, telephone } = req.body;
@@ -51,19 +51,19 @@ router.put('/update-user/:id', upload.single('image'), async (req, res) => {
     });
 
     if (!currentEmployee) {
-      return res.status(404).json({ error: 'Employee not found' });
+      return res.status(404).json({ error: "Employee not found" });
     }
 
     const oldImageUrl = currentEmployee.imageUrl;
 
     // 2. Handle new image upload if a file is attached
     if (req.file) {
-      const fileExt = req.file.originalname.split('.').pop();
+      const fileExt = req.file.originalname.split(".").pop();
       const fileName = `${Date.now()}-${id}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
       const { error: uploadError } = await supabaseAdmin.storage
-        .from('profile')
+        .from("profile")
         .upload(filePath, req.file.buffer, {
           contentType: req.file.mimetype,
           upsert: true,
@@ -72,7 +72,7 @@ router.put('/update-user/:id', upload.single('image'), async (req, res) => {
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabaseAdmin.storage
-        .from('profile')
+        .from("profile")
         .getPublicUrl(filePath);
 
       imageUrl = publicUrlData.publicUrl;
@@ -99,26 +99,29 @@ router.put('/update-user/:id', upload.single('image'), async (req, res) => {
     if (imageUrl && oldImageUrl) {
       // Extract the path from the old public URL
       // Example URL: https://<project>.supabase.co/storage/v1/object/public/profile/avatars/filename.jpg
-      const urlParts = oldImageUrl.split('/');
-      const bucketIndex = urlParts.indexOf('profile'); // 'profile' is the bucket name
+      const urlParts = oldImageUrl.split("/");
+      const bucketIndex = urlParts.indexOf("profile"); // 'profile' is the bucket name
       if (bucketIndex !== -1) {
-        const oldFilePath = urlParts.slice(bucketIndex + 1).join('/');
-        
+        const oldFilePath = urlParts.slice(bucketIndex + 1).join("/");
+
         // Fire-and-forget deletion (non-blocking)
         supabaseAdmin.storage
-          .from('profile')
+          .from("profile")
           .remove([oldFilePath])
           .then(({ error }) => {
-            if (error) console.warn('Failed to delete old profile image:', error);
-            else console.log('Old profile image deleted:', oldFilePath);
+            if (error)
+              console.warn("Failed to delete old profile image:", error);
+            else console.log("Old profile image deleted:", oldFilePath);
           })
-          .catch(err => console.warn('Unexpected error deleting old image:', err));
+          .catch((err) =>
+            console.warn("Unexpected error deleting old image:", err),
+          );
       }
     }
 
     // 6. Remove password and respond
     const { password, ...userWithoutPassword } = updatedUser;
-    console.log('updated');
+    console.log("updated");
     res.status(200).json(userWithoutPassword);
   } catch (error) {
     console.error(error);
@@ -126,7 +129,7 @@ router.put('/update-user/:id', upload.single('image'), async (req, res) => {
   }
 });
 
-router.get('/fetchAllUsers', async (req, res) => {
+router.get("/fetchAllUsers", async (req, res) => {
   try {
     const users = await prisma.employee.findMany({
       where: {
@@ -142,7 +145,7 @@ router.get('/fetchAllUsers', async (req, res) => {
         position: true,
         imageUrl: true,
         salary: true,
-        gender:true,
+        gender: true,
         telephone: true,
         streak: true,
       },
@@ -155,9 +158,64 @@ router.get('/fetchAllUsers', async (req, res) => {
   }
 });
 
-router.post('/approve',async (req,res)=>{
+router.post("/approve", async (req, res) => {
+  const { id } = req.body;
 
+  if (!id) {
+    return res.status(400).json({ error: "Employee ID is required" });
+  }
+
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!employee) {
+      return res.status(400).json({ error: "Employee does not exist" });
+    }
+
+    const approvedEmployee = await prisma.employee.update({
+      where: { id: parseInt(id) },
+      data: { isApproved: true },
+    });
+
+    res.status(200).json({
+      message: "Employee approved successfully",
+      employee: approvedEmployee,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to approve employee. It may not exist." });
+  }
+});
+
+router.post("/reject", async (req, res) => {
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: "Employee ID is required" });
+  }
+
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: parseInt(id) },
+    });
+    if (!employee) {
+      return res.status(400).json({ error: "Employee does not exist" });
+    }
+    await prisma.employee.delete({
+      where: { id: parseInt(id) },
+    });
+
+
+
+    res.status(200).json({ message: "Employee rejected and entry deleted" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to delete employee. Record not found." });
+  }
 });
 
 module.exports = router;
-

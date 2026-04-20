@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-        node-version: '24'
+          node-version: '24'
 
       - name: build prokect
         run: 
@@ -32,12 +32,10 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
-          secure: true
-          passive: true
+          secure: true         
           local-dir: ./
           server-dir: ./attendance-backend.ahaz.io/
-          exclude: |
-            .git*
-            node_modules
-            .github
-            .env
+         
+
+
+            
