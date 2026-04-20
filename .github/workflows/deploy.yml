@@ -32,14 +32,10 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
+          secure: true         
           local-dir: ./
           server-dir: ./attendance-backend.ahaz.io/
-          exclude: |
-            node_modules
-            .github
-            .git*
-            .env
-            README.md
-            package-lock.json
-            .gitignore
-        
+         
+
+
+            

@@ -223,6 +223,42 @@ router.get("/all/:id", async (req, res) => {
   }
 });
 
+router.get("/history/:id", async (req, res) => {
+  try {
+    const employeeId = parseInt(req.params.id);
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: "startDate and endDate are required" });
+    }
+
+    // Ensure the range covers the full start day (00:00:00) to the full end day (23:59:59)
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const history = await prisma.attendance.findMany({
+      where: {
+        employeeId,
+        checkInTime: {
+          gte: start,
+          lte: end,
+        },
+      },
+      orderBy: { 
+        checkInTime: "desc" 
+      },
+    });
+
+    res.json(history);
+  } catch (err) {
+    console.error("History fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/getAll", async (req, res) => {
   try {
 
@@ -236,5 +272,38 @@ router.get("/getAll", async (req, res) => {
   }
 });
 
+router.get("/history-range", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: "startDate and endDate are required" });
+    }
+
+    // Adjust boundaries to cover the full days
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const history = await prisma.attendance.findMany({
+      where: {
+        checkInTime: {
+          gte: start,
+          lte: end,
+        },
+      },
+      orderBy: { 
+        checkInTime: "desc" 
+      },
+    });
+
+    res.json(history);
+  } catch (err) {
+    console.error("Global history fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
